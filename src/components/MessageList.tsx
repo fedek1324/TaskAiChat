@@ -9,17 +9,6 @@ export function MessageList() {
   const isGenerating = useChatStore((s) => s.isGenerating);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [autoScroll, setAutoScroll] = useState(true);
-  const wasGeneratingRef = useRef(false);
-
-  // запоминаем состояние при старте генерации
-  useEffect(() => {
-    if (isGenerating && !wasGeneratingRef.current) {
-      wasGeneratingRef.current = true;
-    }
-    if (!isGenerating && wasGeneratingRef.current) {
-      wasGeneratingRef.current = false;
-    }
-  }, [isGenerating]);
 
   // скролл при стриминге
   useEffect(() => {
@@ -32,27 +21,35 @@ export function MessageList() {
     }
   }, [streamingContent, isGenerating, autoScroll, messages.length]);
 
-  // обновляем autoScroll только когда не генерируем
-  const handleAtBottomChange = (bottom: boolean) => {
-    if (!isGenerating) {
-      setAutoScroll(bottom);
-    }
-  };
-
   const lastIndex = messages.length - 1;
 
   return (
-    <Virtuoso
-      ref={virtuosoRef}
-      className="flex-1"
-      data={messages}
-      atBottomStateChange={handleAtBottomChange}
-      itemContent={(index, message) => (
-        <MessageItem
-          message={message}
-          streamingContent={index === lastIndex ? streamingContent : undefined}
-        />
-      )}
-    />
+    <div
+      className="flex-1 overflow-hidden"
+      onWheel={(e) => {
+        // скролл вверх — отключаем автоскролл
+        if (e.deltaY < 0) {
+          setAutoScroll(false);
+        }
+      }}
+    >
+      <Virtuoso
+        ref={virtuosoRef}
+        style={{ height: '100%' }}
+        data={messages}
+        atBottomStateChange={(atBottom) => {
+          // вернулся вниз — включаем
+          if (atBottom) {
+            setAutoScroll(true);
+          }
+        }}
+        itemContent={(index, message) => (
+          <MessageItem
+            message={message}
+            streamingContent={index === lastIndex ? streamingContent : undefined}
+          />
+        )}
+      />
+    </div>
   );
 }
