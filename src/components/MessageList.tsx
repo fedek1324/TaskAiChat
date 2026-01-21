@@ -9,10 +9,15 @@ export function MessageList() {
   const isGenerating = useChatStore((s) => s.isGenerating);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const autoScrollRef = useRef(true);
+  const frozenStreamingContentRef = useRef<string>('');
 
   const handleAtBottomStateChange = useCallback((atBottom: boolean) => {
     autoScrollRef.current = atBottom;
-  }, []);
+    // Когда уходим от низа - замораживаем текущий streamingContent
+    if (!atBottom) {
+      frozenStreamingContentRef.current = streamingContent;
+    }
+  }, [streamingContent]);
 
   const followOutput = useCallback(() => {
     if (isGenerating && autoScrollRef.current) {
@@ -33,12 +38,24 @@ export function MessageList() {
         alignToBottom
         atBottomStateChange={handleAtBottomStateChange}
         atBottomThreshold={50}
-        itemContent={(index, message) => (
-          <MessageItem
-            message={message}
-            streamingContent={index === lastIndex ? streamingContent : undefined}
-          />
-        )}
+        itemContent={(index, message) => {
+          if (index !== lastIndex) {
+            return <MessageItem message={message} />;
+          }
+
+          // Для последнего элемента показываем либо актуальный текст (внизу),
+          // либо замороженный (не внизу)
+          const displayContent = autoScrollRef.current
+            ? streamingContent
+            : frozenStreamingContentRef.current;
+
+          return (
+            <MessageItem
+              message={message}
+              streamingContent={displayContent}
+            />
+          );
+        }}
       />
     </div>
   );
